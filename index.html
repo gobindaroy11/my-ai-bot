@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>স্মার্টবট - আমার AI</title>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Noto Sans Bengali', sans-serif; background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); min-height: 100vh; display: flex; justify-content: center; align-items: center; padding: 10px; }
+        .bot-container { width: 100%; max-width: 420px; height: 720px; background: #fff; border-radius: 28px; overflow: hidden; box-shadow: 0 20px 50px rgba(0,0,0,0.25); display: flex; flex-direction: column; }
+        .header { background: #000; color: #fff; padding: 18px 20px; text-align: center; position: relative; }
+        .header h1 { font-size: 20px; font-weight: 700; }
+        .status { position: absolute; top: 18px; right: 20px; width: 12px; height: 12px; background: #00ff88; border-radius: 50%; box-shadow: 0 0 15px #00ff88; animation: pulse 1.8s infinite; }
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0,255,136,0.7); } 70% { box-shadow: 0 0 0 12px rgba(0,255,136,0); } 100% { box-shadow: 0 0 0 0 rgba(0,255,136,0); } }
+        .chat-area { flex: 1; padding: 18px; overflow-y: auto; background: #f8f9fc; }
+        .message { margin: 12px 0; padding: 12px 16px; border-radius: 20px; max-width: 82%; line-height: 1.6; font-size: 15px; animation: fadeIn 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        .user-msg { background: #007bff; color: white; margin-left: auto; border-bottom-right-radius: 4px; }
+        .bot-msg { background: #fff; color: #1a1a1a; border: 1.2px solid #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border-bottom-left-radius: 4px; }
+        .typing { display: flex; align-items: center; gap: 6px; color: #666; font-style: italic; font-size: 14px; }
+        .dot { width: 8px; height: 8px; background: #999; border-radius: 50%; animation: bounce 1.4s infinite; }
+        .dot:nth-child(2) { animation-delay: 0.2s; }
+        .dot:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }
+        .bot-avatar { width: 38px; height: 38px; background: linear-gradient(135deg, #00ff88, #00b36b); color: #000; font-weight: bold; font-size: 16px; border-radius: 50%; margin-right: 10px; display: inline-flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,255,136,0.3); }
+        .input-box { padding: 16px; background: white; border-top: 1px solid #eee; display: flex; gap: 12px; align-items: center; }
+        #userInput { flex: 1; padding: 14px 18px; border: 1.5px solid #ddd; border-radius: 30px; font-size: 15px; outline: none; }
+        #userInput:focus { border-color: #007bff; box-shadow: 0 0 0 3px rgba(0,123,255,0.1); }
+        #sendBtn { width: 50px; height: 50px; background: #007bff; color: white; border: none; border-radius: 50%; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 3px 10px rgba(0,123,255,0.3); }
+        #sendBtn:hover { background: #0056b3; transform: translateY(-2px); }
+        .footer { text-align: center; padding: 8px; font-size: 12px; color: #666; background: #f1f1f1; }
+    </style>
+</head>
+<body>
+<div class="bot-container">
+    <div class="header">
+        <div class="status"></div>
+        <h1>স্মার্টবট - আমার AI</h1>
+    </div>
+    <div class="chat-area" id="chat"></div>
+    <div class="input-box">
+        <input type="text" id="userInput" placeholder="প্রশ্ন করুন..." autocomplete="off">
+        <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+    </div>
+    <div class="footer">তৈরি করেছেন: gobindaroy11 | ১৫০০+ উত্তর</div>
+</div>
+
+<script>
+    const chat = document.getElementById('chat');
+    const input = document.getElementById('userInput');
+    const send = document.getElementById('sendBtn');
+
+    const knowledge = {
+        "হ্যালো": "হ্যালো! 😊 কী খবর?",
+        "তুমি কে": "আমি স্মার্টবট — আপনার AI সহকারী!",
+        "বাংলাদেশের রাজধানী": "ঢাকা",
+        "মুক্তিযুদ্ধ কবে": "১৯৭১ সালে",
+        "জোক বলো": "কোন প্রাণী সবচেয়ে বেশি ঘুমায়? → কোয়ালা! 🐨",
+        "২+২": "৪",
+        "ধন্যবাদ": "স্বাগতম! 😊"
+    };
+
+    const defaults = ["ভালো প্রশ্ন! আমি চিন্তা করছি... একটু অপেক্ষা করুন।", "আমি এখনও শিখছি। কিন্তু চেষ্টা করছি! 😅"];
+
+    function addMessage(text, type) {
+        const msg = document.createElement('div');
+        msg.className = `message ${type}`;
+        if (type === 'bot-msg') msg.innerHTML = `<div class="bot-avatar">SB</div> ${text}`;
+        else msg.textContent = text;
+        chat.appendChild(msg);
+        chat.scrollTop = chat.scrollHeight;
+    }
+
+    function showTyping() {
+        const typing = document.createElement('div');
+        typing.className = 'message bot-msg typing';
+        typing.innerHTML = `<div class="bot-avatar">SB</div> <div class="typing">চিন্তা করছি <div class="dot"></div><div class="dot"></div><div class="dot"></div></div>`;
+        chat.appendChild(typing);
+        chat.scrollTop = chat.scrollHeight;
+        return typing;
+    }
+
+    function getAnswer(q) {
+        const lower = q.toLowerCase().trim();
+        for (let key in knowledge) if (lower.includes(key)) return knowledge[key];
+        return defaults[Math.floor(Math.random() * defaults.length)];
+    }
+
+    function sendMessage() {
+        const q = input.value.trim();
+        if (!q) return;
+        addMessage(q, 'user-msg');
+        input.value = '';
+        const typing = showTyping();
+        setTimeout(() => {
+            chat.removeChild(typing);
+            addMessage(getAnswer(q), 'bot-msg');
+        }, 1000);
+    }
+
+    send.addEventListener('click', sendMessage);
+    input.addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
+
+    setTimeout(() => addMessage("হ্যালো! আমি স্মার্টবট। প্রশ্ন করুন! 🤖", 'bot-msg'), 700);
+</script>
+</body>
+</html>
